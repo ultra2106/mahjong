@@ -4,35 +4,26 @@
   ============================================
   このファイル1つでアプリが動きます。
   使い方：このファイルをダブルクリックすると、ブラウザで開きます。
-
-  HTMLファイルは大きく3つの部分でできています：
-    1. <style>  … 見た目（色・大きさ・配置）を決める
-    2. <body>   … 画面に置く部品（ボタンや文字）
-    3. <script> … 動き（タップしたら何が起きるか）を決める
-  まずは「動く」ことを体験して、あとから少しずつ意味を理解すればOKです。
 -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- スマホで見たときに拡大されず、ちょうど良い大きさで表示する設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>麻雀 点数計算</title>
 
   <style>
-    /* ===== 全体の見た目 ===== */
     body {
       font-family: sans-serif;
-      background: #0b6623;       /* 麻雀卓っぽい緑 */
+      background: #0b6623;
       color: #fff;
       margin: 0;
       padding: 16px;
-      -webkit-user-select: none; /* 長押しで文字が選択されないように */
+      -webkit-user-select: none;
       user-select: none;
     }
     h1 { font-size: 20px; text-align: center; }
     h2 { font-size: 15px; margin: 16px 0 6px; opacity: 0.85; }
 
-    /* ===== 選んだ手牌を表示する場所 ===== */
     #hand {
       min-height: 56px;
       background: rgba(0,0,0,0.25);
@@ -45,7 +36,6 @@
     }
     #handCount { text-align: center; margin: 8px 0; font-size: 14px; }
 
-    /* ===== 牌のボタン共通の見た目 ===== */
     .tile {
       background: #f7f7f0;
       color: #111;
@@ -61,16 +51,14 @@
       justify-content: center;
       padding: 0;
     }
-    .tile:active { transform: scale(0.92); } /* 押した瞬間に少し縮む */
-    .tile.man { color: #b22222; } /* 萬子は赤っぽく */
-    .tile.pin { color: #1560bd; } /* 筒子は青っぽく */
-    .tile.sou { color: #2e7d32; } /* 索子は緑っぽく */
+    .tile:active { transform: scale(0.92); }
+    .tile.man { color: #b22222; }
+    .tile.pin { color: #1560bd; }
+    .tile.sou { color: #2e7d32; }
     .tile.honor { color: #333; }
 
-    /* 牌を並べる行 */
     .row { display: flex; flex-wrap: wrap; gap: 4px; }
 
-    /* ===== 操作ボタン ===== */
     .actions { display: flex; gap: 8px; margin-top: 16px; }
     .btn {
       flex: 1;
@@ -84,20 +72,18 @@
     .btn-wait  { background: #16a085; color: #fff; font-weight: bold; }
     .btn-calc  { background: #f1c40f; color: #111; font-weight: bold; }
 
-    /* ===== 結果表示エリア ===== */
     .result {
       margin-top: 14px;
       background: rgba(0, 0, 0, 0.32);
       border-radius: 8px;
       padding: 12px 14px;
-      white-space: pre-wrap;   /* 改行をそのまま表示 */
+      white-space: pre-wrap;
       font-size: 14px;
       line-height: 1.6;
       min-height: 40px;
     }
     .result:empty::before { content: 'ここに結果が表示されます'; opacity: 0.5; }
 
-    /* ===== 状況入力パネル ===== */
     .cond { background: rgba(0,0,0,0.22); border-radius: 8px; padding: 10px; }
     .cond-row {
       display: flex; flex-wrap: wrap; gap: 12px;
@@ -108,22 +94,24 @@
     .cond-row select, .cond-row input[type=number] {
       font-size: 14px; padding: 5px; border-radius: 5px; border: none;
     }
+
+    /* ★新規：保存状態を知らせる小さな通知 */
+    #saveNotice {
+      text-align: center; font-size: 12px; opacity: 0.7; margin-top: 6px; height: 16px;
+    }
   </style>
 </head>
 
 <body>
   <h1>🀄 麻雀 点数計算</h1>
 
-  <!-- 選んだ手牌がここに表示される（最初は空） -->
   <h2>あなたの手牌</h2>
   <div id="hand"></div>
   <div id="handCount">0 / 14 枚</div>
 
-  <!-- 牌を選ぶボタン群。中身は下の<script>が自動で作ります -->
   <h2>牌を選んでタップ</h2>
   <div id="palette"></div>
 
-  <!-- 写真に写らない情報は、ここで手入力する -->
   <h2>あがりの状況</h2>
   <div class="cond">
     <div class="cond-row">
@@ -138,6 +126,14 @@
     <div class="cond-row">
       <label><input type="checkbox" id="rinshan"> 嶺上開花（カン後のツモあがり）</label>
     </div>
+    <!-- ★新規：槍槓・海底摸月・河底撈魚 -->
+    <div class="cond-row">
+      <label><input type="checkbox" id="chankan"> 槍槓（他家のカンをロン）</label>
+    </div>
+    <div class="cond-row">
+      <label><input type="checkbox" id="haitei"> 海底摸月（最後の1枚をツモ）</label>
+      <label><input type="checkbox" id="houtei"> 河底撈魚（最後の1枚をロン）</label>
+    </div>
     <div class="cond-row">
       <span>場風</span>
       <select id="roundWind"><option value="東">東</option><option value="南">南</option></select>
@@ -150,9 +146,14 @@
       <span>ドラ</span>
       <input type="number" id="dora" value="0" min="0" style="width: 54px;">
     </div>
+    <!-- ★新規：本場入力 -->
+    <div class="cond-row">
+      <span>本場</span>
+      <input type="number" id="honba" value="0" min="0" style="width: 54px;">
+      <span style="opacity:0.7;">（ロン+300点/本場・ツモ+100点/本場・人）</span>
+    </div>
   </div>
 
-  <!-- 鳴き（ポン・チー）の宣言エリア。宣言した面子は「明（オープン）」扱い -->
   <h2>鳴き（ポン・チー）</h2>
   <div class="cond">
     <div class="cond-row">
@@ -166,7 +167,6 @@
     <div id="callList" style="font-size: 14px;"></div>
   </div>
 
-  <!-- カン（槓）の宣言エリア。ここで宣言したカンは手牌タップとは別に管理する -->
   <h2>カン（槓）</h2>
   <div class="cond">
     <div class="cond-row">
@@ -186,13 +186,10 @@
     <button class="btn btn-calc"  onclick="calculate()">点数計算</button>
   </div>
 
-  <!-- 計算結果はここに表示する（ポップアップではなく画面内） -->
   <div id="result" class="result"></div>
+  <div id="saveNotice"></div>
 
   <script>
-    // ===== ① どんな牌があるかを準備する =====
-    // m=萬子, p=筒子, s=索子。数字の1〜9と組み合わせる。
-    // z=字牌（東南西北白發中）。
     const suits = [
       { key: 'm', label: '萬', cls: 'man' },
       { key: 'p', label: '筒', cls: 'pin' },
@@ -200,45 +197,36 @@
     ];
     const honors = ['東','南','西','北','白','發','中'];
 
-    // 選んだ手牌をしまっておく箱（最初は空っぽの配列）
     let hand = [];
-    // 宣言したカンをしまっておく箱（{idx:牌番号, type:'ankan'|'minkan'}）
     let kans = [];
-    // 宣言した鳴き（ポン・チー）をしまっておく箱（{type:'kotsu'|'shuntsu', idx}）
     let calls = [];
 
-    // 完成手に必要な手牌の枚数（宣言した面子1組につき3枚減る）
     function neededTiles() { return 14 - 3 * (kans.length + calls.length); }
 
-    // ある牌が今いくつ使われているか（手牌＋カン＋鳴きを合算）
     function tileCount(idx) {
       let c = hand.filter(n => nameToIndex(n) === idx).length;
-      c += kans.filter(k => k.idx === idx).length * 4;          // カンは1組4枚
+      c += kans.filter(k => k.idx === idx).length * 4;
       calls.forEach(call => {
-        if (call.type === 'kotsu') { if (call.idx === idx) c += 3; }      // ポン＝同じ牌3枚
-        else { if (idx === call.idx || idx === call.idx + 1 || idx === call.idx + 2) c += 1; } // チー＝3連番
+        if (call.type === 'kotsu') { if (call.idx === idx) c += 3; }
+        else { if (idx === call.idx || idx === call.idx + 1 || idx === call.idx + 2) c += 1; }
       });
       return c;
     }
 
-    // ===== ② 牌を選ぶボタンを画面に並べる =====
     const palette = document.getElementById('palette');
-
-    // 萬子・筒子・索子（1〜9）をそれぞれ1行ずつ作る
     suits.forEach(suit => {
       const row = document.createElement('div');
       row.className = 'row';
       for (let n = 1; n <= 9; n++) {
         const btn = document.createElement('button');
         btn.className = 'tile ' + suit.cls;
-        btn.textContent = n + suit.label;          // 例：「1萬」
-        btn.onclick = () => addTile(n + suit.label); // タップしたら手牌に追加
+        btn.textContent = n + suit.label;
+        btn.onclick = () => addTile(n + suit.label);
         row.appendChild(btn);
       }
       palette.appendChild(row);
     });
 
-    // 字牌の行
     const honorRow = document.createElement('div');
     honorRow.className = 'row';
     honors.forEach(name => {
@@ -250,7 +238,6 @@
     });
     palette.appendChild(honorRow);
 
-    // カン用・鳴き用プルダウンに全34種の牌を入れておく
     const allTileNames = [];
     suits.forEach(s => { for (let n = 1; n <= 9; n++) allTileNames.push(n + s.label); });
     honors.forEach(h => allTileNames.push(h));
@@ -263,9 +250,7 @@
       });
     });
 
-    // ===== ③ タップしたときの動き =====
     function addTile(name) {
-      // 同じ牌は4枚まで（カンで使った牌ぶんも合算してチェック）
       if (tileCount(nameToIndex(name)) >= 4) {
         alert(name + ' はすでに4枚使われています（同じ牌は4枚まで）');
         return;
@@ -274,28 +259,27 @@
         alert('手牌は ' + neededTiles() + ' 枚までです（カン宣言ぶん減っています）');
         return;
       }
-      hand.push(name);  // 手牌の箱に1枚追加
-      render();         // 画面を描き直す
+      hand.push(name);
+      render();
+      saveState(); // ★新規：変更のたびに保存
     }
 
-    // ===== カンの追加・削除 =====
     function addKan() {
       if (kans.length >= 4) { alert('カンは最大4つまでです'); return; }
       const name = document.getElementById('kanTile').value;
       const type = document.getElementById('kanType').value;
       const idx = nameToIndex(name);
-      // カンは未使用の牌4枚が必要。すでに手牌やカンで使っていたら不可
       if (tileCount(idx) > 0) {
         alert(name + ' はすでに使われているため、カンにできません。\n（カンはその牌4枚すべてが必要です。先に手牌から ' + name + ' を外してください）');
         return;
       }
       kans.push({ idx, type });
-      // 手牌がはみ出さないよう、必要枚数を超える手牌は末尾から削る
       while (hand.length > neededTiles()) hand.pop();
       renderKans();
       render();
+      saveState();
     }
-    function removeKan(i) { kans.splice(i, 1); renderKans(); render(); }
+    function removeKan(i) { kans.splice(i, 1); renderKans(); render(); saveState(); }
     function renderKans() {
       const div = document.getElementById('kanList');
       div.innerHTML = '';
@@ -310,18 +294,15 @@
       });
     }
 
-    // ===== 鳴き（ポン・チー）の追加・削除 =====
     function addCall() {
       if (kans.length + calls.length >= 4) { alert('面子は合計4つまでです'); return; }
       const name = document.getElementById('callTile').value;
       const kind = document.getElementById('callType').value;
       const idx = nameToIndex(name);
       if (kind === 'pon') {
-        // ポン：同じ牌が3枚必要（残り枚数が足りるか確認）
         if (tileCount(idx) > 1) { alert(name + ' は残り枚数が足りず、ポンにできません'); return; }
         calls.push({ type: 'kotsu', idx });
       } else {
-        // チー：選んだ牌から3連番（数牌で1〜7始まりのみ）
         if (idx >= 27 || idx % 9 > 6) { alert('チーは数牌の1〜7から始まる3連番のみです（例：3萬で 3-4-5萬）'); return; }
         if (tileCount(idx) > 3 || tileCount(idx + 1) > 3 || tileCount(idx + 2) > 3) {
           alert('その3連番は残り枚数が足りず、チーにできません'); return;
@@ -331,8 +312,9 @@
       while (hand.length > neededTiles()) hand.pop();
       renderCalls();
       render();
+      saveState();
     }
-    function removeCall(i) { calls.splice(i, 1); renderCalls(); render(); }
+    function removeCall(i) { calls.splice(i, 1); renderCalls(); render(); saveState(); }
     function renderCalls() {
       const div = document.getElementById('callList');
       div.innerHTML = '';
@@ -350,10 +332,10 @@
       });
     }
 
-    // 手牌の中の牌をタップしたら、その1枚を取り除く
     function removeTile(index) {
       hand.splice(index, 1);
       render();
+      saveState();
     }
 
     function clearHand() {
@@ -363,15 +345,13 @@
       renderKans();
       renderCalls();
       render();
+      saveState();
     }
 
-    // 門前かどうか（ポン・チーの宣言がなく、明槓もない）を判定
     function isMenzen() {
       return calls.length === 0 && !kans.some(k => k.type === 'minkan');
     }
 
-    // --- 牌の名前から、色分け用のクラス名を返す ---
-    //   "3萬"→man(赤) / "5筒"→pin(青) / "7索"→sou(緑) / 字牌→honor(黒)
     function suitClass(name) {
       if (name[1] === '萬') return 'man';
       if (name[1] === '筒') return 'pin';
@@ -379,13 +359,12 @@
       return 'honor';
     }
 
-    // ===== ④ 今の手牌を画面に表示する =====
     function render() {
       const handDiv = document.getElementById('hand');
-      handDiv.innerHTML = ''; // いったん空にしてから並べ直す
+      handDiv.innerHTML = '';
       hand.forEach((name, index) => {
         const t = document.createElement('button');
-        t.className = 'tile ' + suitClass(name); // パレットと同じ色分けを付ける
+        t.className = 'tile ' + suitClass(name);
         t.textContent = name;
         t.title = 'タップで削除';
         t.onclick = () => removeTile(index);
@@ -396,68 +375,48 @@
         hand.length + ' / ' + neededTiles() + ' 枚' +
         (declared ? '（宣言した面子' + declared + '組ぶん減算）' : '');
 
-      // 門前でないときは、リーチ・一発を無効化（門前限定のため）
       const menzen = isMenzen();
       const r = document.getElementById('riichi'), ip = document.getElementById('ippatsu');
       if (!menzen) { r.checked = false; ip.checked = false; }
       r.disabled = !menzen; ip.disabled = !menzen;
 
-      // 「あがり牌」の選択肢を、今の手牌から作る（重複は1つにまとめる）
       const winSel = document.getElementById('winTile');
-      const prev = winSel.value;                 // 今選ばれている値を覚えておく
-      const uniq = [...new Set(hand)];           // 手牌の中の種類だけ取り出す
+      const prev = winSel.value;
+      const uniq = [...new Set(hand)];
       winSel.innerHTML = '';
       uniq.forEach(name => {
         const opt = document.createElement('option');
         opt.value = name; opt.textContent = name;
         winSel.appendChild(opt);
       });
-      // さっき選んでいた牌がまだ手牌にあれば、それを選び直す
       if (uniq.includes(prev)) winSel.value = prev;
     }
 
-    // ============================================================
-    //  ⑤ 和了形（あがれる形）の判定エンジン  ── ステップ2a
-    // ============================================================
-    //  考え方：
-    //    麻雀の和了形は「4面子（メンツ）＋1雀頭（ジャントウ）」が基本。
-    //      ・面子＝刻子(コーツ:同じ牌3枚) または 順子(シュンツ:連番3枚)
-    //      ・雀頭＝同じ牌2枚
-    //    例外として「七対子(2枚ペア×7)」「国士無双」もあがり形。
-    //    14枚をこの形にうまく分解できれば「和了」と判定します。
-
-    // --- 牌の名前(例"3萬","東")を、計算しやすい番号(0〜33)に変換する ---
-    //   0〜8 =1萬〜9萬 / 9〜17 =1筒〜9筒 / 18〜26 =1索〜9索 / 27〜33 =東南西北白發中
     const honorNames = ['東','南','西','北','白','發','中'];
     function nameToIndex(name) {
       const suitOffset = { '萬': 0, '筒': 9, '索': 18 };
       if (name.length === 2 && suitOffset[name[1]] !== undefined) {
         return suitOffset[name[1]] + (Number(name[0]) - 1);
       }
-      return 27 + honorNames.indexOf(name); // 字牌
+      return 27 + honorNames.indexOf(name);
     }
-    // --- 逆に、番号を名前に戻す（表示用）---
     function indexToName(i) {
       if (i >= 27) return honorNames[i - 27];
       const suit = ['萬','筒','索'][Math.floor(i / 9)];
       return (i % 9 + 1) + suit;
     }
 
-    // --- 手牌を「各牌が何枚あるか」の34マスの一覧に変換 ---
     function toCounts(handArr) {
       const counts = new Array(34).fill(0);
       handArr.forEach(name => counts[nameToIndex(name)]++);
       return counts;
     }
 
-    // --- 残りの牌を、面子だけにきれいに分解できるか試す（再帰）---
-    //   できる分解パターンを out に全部ためる
     function decomposeMelds(counts, start, current, out) {
       let i = start;
-      while (i < 34 && counts[i] === 0) i++; // 牌が残っている最初の位置を探す
-      if (i >= 34) { out.push(current.map(m => ({...m}))); return; } // 全部きれいに分解できた
+      while (i < 34 && counts[i] === 0) i++;
+      if (i >= 34) { out.push(current.map(m => ({...m}))); return; }
 
-      // パターン1：刻子（同じ牌3枚）として取り除いてみる
       if (counts[i] >= 3) {
         counts[i] -= 3;
         current.push({ type: 'kotsu', idx: i });
@@ -465,7 +424,6 @@
         current.pop();
         counts[i] += 3;
       }
-      // パターン2：順子（連番3枚）として取り除いてみる（数牌で、同じ種類に収まる時だけ）
       const isSuited = i < 27;
       const posInSuit = i % 9;
       if (isSuited && posInSuit <= 6 && counts[i + 1] > 0 && counts[i + 2] > 0) {
@@ -477,13 +435,12 @@
       }
     }
 
-    // --- 標準形（4面子1雀頭）として分解できるパターンを全部探す ---
     function findStandardWins(counts) {
       const results = [];
-      for (let p = 0; p < 34; p++) {        // どの牌を雀頭にするか順に試す
+      for (let p = 0; p < 34; p++) {
         if (counts[p] >= 2) {
           const c = counts.slice();
-          c[p] -= 2;                        // 雀頭として2枚取り除く
+          c[p] -= 2;
           const melds = [];
           decomposeMelds(c, 0, [], melds);
           melds.forEach(m => results.push({ pair: p, melds: m }));
@@ -492,21 +449,18 @@
       return results;
     }
 
-    // --- 七対子（同じ牌2枚のペアが7種類）か判定 ---
     function isChiitoitsu(counts) {
       return counts.filter(n => n === 2).length === 7;
     }
-    // --- 国士無双（1・9・字牌の13種を全部＋どれか1枚重ね）か判定 ---
     function isKokushi(counts) {
-      const yaochu = [0,8,9,17,18,26,27,28,29,30,31,32,33]; // 老頭牌＋字牌
+      const yaochu = [0,8,9,17,18,26,27,28,29,30,31,32,33];
       const others = counts.reduce((sum, n, i) => sum + (yaochu.includes(i) ? 0 : n), 0);
-      if (others > 0) return false;                       // それ以外の牌があったら×
+      if (others > 0) return false;
       const kinds = yaochu.filter(i => counts[i] >= 1).length;
       const pair  = yaochu.some(i => counts[i] === 2);
       return kinds === 13 && pair;
     }
 
-    // --- 分解結果を読みやすい文章にする ---
     function describeWin(win) {
       const parts = [];
       parts.push('雀頭：' + indexToName(win.pair) + indexToName(win.pair));
@@ -520,17 +474,11 @@
       return parts.join('\n');
     }
 
-    // ============================================================
-    //  ⑥ 役判定エンジン  ── ステップ2b
-    // ============================================================
-    //  ※ いまは「門前（鳴きなし）」前提。鳴きは後のステップで対応します。
+    const WIND_IDX = { '東': 27, '南': 28, '西': 29, '北': 30 };
 
-    const WIND_IDX = { '東': 27, '南': 28, '西': 29, '北': 30 }; // 風牌の番号
-
-    // 翻数を合計する小さな道具
     function sumHan(list) { return list.reduce((s, y) => s + y.han, 0); }
 
-    // 画面の入力をまとめて1つの「状況オブジェクト」にする
+    // ★変更：chankan / haitei / houtei / honba を追加
     function getContext() {
       const agari = document.querySelector('input[name=agari]:checked').value;
       return {
@@ -539,49 +487,48 @@
         riichi:    document.getElementById('riichi').checked,
         ippatsu:   document.getElementById('ippatsu').checked,
         rinshan:   document.getElementById('rinshan').checked,
+        chankan:   document.getElementById('chankan').checked, // ★新規
+        haitei:    document.getElementById('haitei').checked,  // ★新規
+        houtei:    document.getElementById('houtei').checked,  // ★新規
         roundWind: document.getElementById('roundWind').value,
         seatWind:  document.getElementById('seatWind').value,
         winIdx:    nameToIndex(document.getElementById('winTile').value),
         dora:      Number(document.getElementById('dora').value) || 0,
-        // ポン・チーの宣言、または明槓があれば門前でない（暗槓は門前を維持）
+        honba:     Number(document.getElementById('honba').value) || 0, // ★新規
         menzen:    isMenzen(),
       };
     }
 
-    // 1つの分解（win）に含まれる牌の番号を全部ならべた配列を作る
-    //   ※ カンも刻子と同じく「同じ牌の集まり」として扱う（性質判定には3枚ぶんで十分）
     function tilesOf(win) {
       const all = [];
       win.melds.forEach(m => {
         if (m.type === 'shuntsu') all.push(m.idx, m.idx + 1, m.idx + 2);
-        else all.push(m.idx, m.idx, m.idx); // kotsu と kan
+        else all.push(m.idx, m.idx, m.idx);
       });
       all.push(win.pair, win.pair);
       return all;
     }
-    const isYaochu = i => i >= 27 || i % 9 === 0 || i % 9 === 8; // 1・9・字牌か
+    const isYaochu = i => i >= 27 || i % 9 === 0 || i % 9 === 8;
 
-    // 暗刻（＋暗槓）の数を数える。ロンで完成した刻子は暗刻に含めない
     function countAnkou(win, ctx) {
       let ankou = 0;
       const inShuntsu = win.melds.some(m => m.type === 'shuntsu' &&
         ctx.winIdx >= m.idx && ctx.winIdx <= m.idx + 2);
       win.melds.forEach(m => {
-        if (m.type === 'kan') { if (m.concealed) ankou++; return; } // 暗槓は暗刻扱い
+        if (m.type === 'kan') { if (m.concealed) ankou++; return; }
         if (m.type !== 'kotsu') return;
-        if (m.open) return;                                         // ポン（明刻）は暗刻でない
+        if (m.open) return;
         let concealed = true;
-        if (ctx.ron && !inShuntsu && m.idx === ctx.winIdx) concealed = false; // ロンで完成＝明刻
+        if (ctx.ron && !inShuntsu && m.idx === ctx.winIdx) concealed = false;
         if (concealed) ankou++;
       });
       return ankou;
     }
 
-    // --- 標準形（4面子1雀頭）の役満を判定 ---
     function analyzeYakuman(win, ctx) {
       const ym = [];
       const all = tilesOf(win);
-      const triplets = win.melds.filter(m => m.type === 'kotsu' || m.type === 'kan'); // 刻子＋カン
+      const triplets = win.melds.filter(m => m.type === 'kotsu' || m.type === 'kan');
       if (ctx.menzen && countAnkou(win, ctx) === 4) ym.push({ name: '四暗刻', han: 13 });
       if (triplets.filter(k => k.idx >= 31).length === 3) ym.push({ name: '大三元', han: 13 });
       const windKotsu = triplets.filter(k => k.idx >= 27 && k.idx <= 30).length;
@@ -590,32 +537,33 @@
       if (win.melds.filter(m => m.type === 'kan').length === 4) ym.push({ name: '四槓子', han: 13 });
       if (all.every(i => i >= 27)) ym.push({ name: '字一色', han: 13 });
       if (all.every(i => i < 27 && (i % 9 === 0 || i % 9 === 8))) ym.push({ name: '清老頭', han: 13 });
-      const greens = new Set([19, 20, 21, 23, 25, 32]); // 2,3,4,6,8索 と 發
+      const greens = new Set([19, 20, 21, 23, 25, 32]);
       if (all.every(i => greens.has(i))) ym.push({ name: '緑一色', han: 13 });
       return ym;
     }
 
-    // --- 標準形の通常役を判定して、役の一覧を返す ---
+    // ★変更：槍槓・海底摸月・河底撈魚を追加
     function analyzeStandard(win, ctx) {
       const yaku = [];
       const shuntsu = win.melds.filter(m => m.type === 'shuntsu');
       const kotsu   = win.melds.filter(m => m.type === 'kotsu');
-      const triplets = win.melds.filter(m => m.type === 'kotsu' || m.type === 'kan'); // 刻子＋カン
+      const triplets = win.melds.filter(m => m.type === 'kotsu' || m.type === 'kan');
       const kanCount = win.melds.filter(m => m.type === 'kan').length;
       const all = tilesOf(win);
 
-      // 門前の手役（鳴きありでは付かない）
       if (ctx.menzen && ctx.riichi) yaku.push({ name: '立直', han: 1 });
       if (ctx.menzen && ctx.riichi && ctx.ippatsu) yaku.push({ name: '一発', han: 1 });
       if (ctx.menzen && ctx.tsumo) yaku.push({ name: '門前清自摸和', han: 1 });
 
-      // 嶺上開花（カン後のツモあがり）
       if (ctx.rinshan && ctx.tsumo) yaku.push({ name: '嶺上開花', han: 1 });
 
-      // 断么九（タンヤオ）
+      // ★新規：状況役
+      if (ctx.chankan && ctx.ron) yaku.push({ name: '槍槓', han: 1 });
+      if (ctx.haitei && ctx.tsumo) yaku.push({ name: '海底摸月', han: 1 });
+      if (ctx.houtei && ctx.ron) yaku.push({ name: '河底撈魚', han: 1 });
+
       if (all.every(i => !isYaochu(i))) yaku.push({ name: '断么九', han: 1 });
 
-      // 役牌（白・發・中・場風・自風）※カンも刻子と同じ扱い
       triplets.forEach(k => {
         if (k.idx === 31) yaku.push({ name: '役牌 白', han: 1 });
         if (k.idx === 32) yaku.push({ name: '役牌 發', han: 1 });
@@ -624,20 +572,18 @@
         if (k.idx === WIND_IDX[ctx.seatWind])  yaku.push({ name: '自風 ' + ctx.seatWind, han: 1 });
       });
 
-      // 平和（門前・全部順子・雀頭が役牌でない・両面待ち）
       const pairYakuhai = win.pair >= 31 ||
         win.pair === WIND_IDX[ctx.roundWind] || win.pair === WIND_IDX[ctx.seatWind];
       if (ctx.menzen && shuntsu.length === 4 && !pairYakuhai) {
         let ryanmen = false;
         shuntsu.forEach(s => {
           const a = s.idx, c = s.idx + 2;
-          if (ctx.winIdx === a && a % 9 !== 6) ryanmen = true; // 下端で完成
-          if (ctx.winIdx === c && a % 9 !== 0) ryanmen = true; // 上端で完成
+          if (ctx.winIdx === a && a % 9 !== 6) ryanmen = true;
+          if (ctx.winIdx === c && a % 9 !== 0) ryanmen = true;
         });
         if (ryanmen) yaku.push({ name: '平和', han: 1 });
       }
 
-      // 一盃口 / 二盃口（同じ順子の重なり）
       const seqCount = {};
       shuntsu.forEach(s => seqCount[s.idx] = (seqCount[s.idx] || 0) + 1);
       const seqPairs = Object.values(seqCount).reduce((n, c) => n + Math.floor(c / 2), 0);
@@ -646,36 +592,29 @@
         else if (seqPairs === 1) yaku.push({ name: '一盃口', han: 1 });
       }
 
-      // 三色同順（同じ並びが3色そろう）
       const posSuits = {};
       shuntsu.forEach(s => {
         (posSuits[s.idx % 9] = posSuits[s.idx % 9] || new Set()).add(Math.floor(s.idx / 9));
       });
       if (Object.values(posSuits).some(set => set.size >= 3)) yaku.push({ name: '三色同順', han: ctx.menzen ? 2 : 1 });
 
-      // 一気通貫（同じ色で123・456・789）
       for (let suit = 0; suit < 3; suit++) {
         const base = suit * 9;
         const has = p => shuntsu.some(s => s.idx === base + p);
         if (has(0) && has(3) && has(6)) { yaku.push({ name: '一気通貫', han: ctx.menzen ? 2 : 1 }); break; }
       }
 
-      // 対々和（順子が1つもない＝4面子すべて刻子/カン）
       if (shuntsu.length === 0) yaku.push({ name: '対々和', han: 2 });
 
-      // 三暗刻（鳴き面子を宣言するので、鳴き手でも暗刻を正しく数えられる）
       if (countAnkou(win, ctx) === 3) yaku.push({ name: '三暗刻', han: 2 });
 
-      // 三槓子（カンが3つ）
       if (kanCount === 3) yaku.push({ name: '三槓子', han: 2 });
 
-      // 一色系（混一色・清一色）
       const suitsUsed = new Set(); let hasHonor = false;
       all.forEach(i => { if (i >= 27) hasHonor = true; else suitsUsed.add(Math.floor(i / 9)); });
       if (suitsUsed.size === 1 && !hasHonor) yaku.push({ name: '清一色', han: ctx.menzen ? 6 : 5 });
       else if (suitsUsed.size === 1 && hasHonor) yaku.push({ name: '混一色', han: ctx.menzen ? 3 : 2 });
 
-      // チャンタ・純チャン・混老頭（カンは刻子と同じ扱い）
       const meldYaochu = win.melds.every(m => m.type === 'shuntsu'
         ? (m.idx % 9 === 0 || m.idx % 9 === 6) : isYaochu(m.idx));
       if (meldYaochu && isYaochu(win.pair)) {
@@ -687,19 +626,21 @@
         }
       }
 
-      // 小三元（三元牌の刻子/カンが2つ＋三元牌の雀頭）
       if (triplets.filter(k => k.idx >= 31).length === 2 && win.pair >= 31)
         yaku.push({ name: '小三元', han: 2 });
 
       return yaku;
     }
 
-    // --- 七対子の形のときの役を判定 ---
+    // ★変更：チートイツでも状況役を反映
     function analyzeChiitoi(counts, ctx) {
       const yaku = [{ name: '七対子', han: 2 }];
       if (ctx.riichi) yaku.unshift({ name: '立直', han: 1 });
       if (ctx.riichi && ctx.ippatsu) yaku.push({ name: '一発', han: 1 });
       if (ctx.tsumo) yaku.push({ name: '門前清自摸和', han: 1 });
+      if (ctx.chankan && ctx.ron) yaku.push({ name: '槍槓', han: 1 }); // ★新規
+      if (ctx.haitei && ctx.tsumo) yaku.push({ name: '海底摸月', han: 1 }); // ★新規
+      if (ctx.houtei && ctx.ron) yaku.push({ name: '河底撈魚', han: 1 }); // ★新規
       const idxs = []; counts.forEach((c, i) => { if (c === 2) idxs.push(i); });
       if (idxs.every(i => !isYaochu(i))) yaku.push({ name: '断么九', han: 1 });
       const suitsUsed = new Set(); let hasHonor = false;
@@ -710,7 +651,6 @@
       return yaku;
     }
 
-    // --- 九蓮宝燈の判定（清一色の特殊形）---
     function isChuuren(counts) {
       for (let suit = 0; suit < 3; suit++) {
         const base = suit * 9;
@@ -730,32 +670,24 @@
       return false;
     }
 
-    // ============================================================
-    //  ⑦ 符の計算  ── ステップ2c
-    // ============================================================
-    //  符 = 20（副底）＋ あがり方 ＋ 雀頭 ＋ 刻子 ＋ 待ち、最後に10の位へ切り上げ
     function computeFu(win, ctx, yakuNames) {
-      // 内訳(breakdown)を作りながら符を足していき、{fu, breakdown} を返す
       const bd = [];
 
-      // 平和は特別：ツモ20符、ロン30符で固定
       if (yakuNames.includes('平和')) {
         if (ctx.tsumo) return { fu: 20, breakdown: ['平和ツモ（20符固定）'] };
         return { fu: 30, breakdown: ['副底 20符', '門前ロン +10符'] };
       }
 
-      let fu = 20; bd.push('副底 20符');        // 副底（必ず付く20符）
+      let fu = 20; bd.push('副底 20符');
       if (ctx.ron && ctx.menzen) { fu += 10; bd.push('門前ロン +10符'); }
       if (ctx.tsumo) { fu += 2; bd.push('ツモ +2符'); }
 
-      // 雀頭が役牌なら +2（連風牌なら場風＋自風で+4になりうる）
       if (win.pair >= 31) { fu += 2; bd.push('役牌の雀頭(三元牌) +2符'); }
       if (win.pair === WIND_IDX[ctx.roundWind]) { fu += 2; bd.push('場風の雀頭 +2符'); }
       if (win.pair === WIND_IDX[ctx.seatWind]) { fu += 2; bd.push('自風の雀頭 +2符'); }
 
-      // 刻子の符（中張=2-8 / 么九=1-9字、暗刻か明刻か）
       win.melds.filter(m => m.type === 'kotsu').forEach(k => {
-        let open = k.open || false; // ポン（明刻）は最初から明刻。ロンで完成した刻子も明刻扱い
+        let open = k.open || false;
         if (!open && ctx.ron) {
           const inShuntsu = win.melds.some(m => m.type === 'shuntsu' &&
             ctx.winIdx >= m.idx && ctx.winIdx <= m.idx + 2);
@@ -767,7 +699,6 @@
                 '・' + (isYaochu(k.idx) ? '么九' : '中張') + ') +' + v + '符');
       });
 
-      // 槓子の符（刻子の4倍が目安。暗槓は明槓の倍）
       win.melds.filter(m => m.type === 'kan').forEach(k => {
         const v = k.concealed ? (isYaochu(k.idx) ? 32 : 16) : (isYaochu(k.idx) ? 16 : 8);
         fu += v;
@@ -775,30 +706,27 @@
                 '・' + (isYaochu(k.idx) ? '么九' : '中張') + ') +' + v + '符');
       });
 
-      // 待ちの符（単騎・嵌張・辺張は +2、両面・シャンポンは 0）
       let waitFu = 0, waitLabel = '';
       if (ctx.winIdx === win.pair) { waitFu = 2; waitLabel = '単騎待ち'; }
       win.melds.filter(m => m.type === 'shuntsu').forEach(s => {
         const a = s.idx;
-        if (waitFu === 0 && ctx.winIdx === a + 1) { waitFu = 2; waitLabel = '嵌張待ち'; }              // 嵌張（中）
-        if (waitFu === 0 && ctx.winIdx === a + 2 && a % 9 === 0) { waitFu = 2; waitLabel = '辺張待ち'; } // 辺張 123の3
-        if (waitFu === 0 && ctx.winIdx === a && a % 9 === 6) { waitFu = 2; waitLabel = '辺張待ち'; }     // 辺張 789の7
+        if (waitFu === 0 && ctx.winIdx === a + 1) { waitFu = 2; waitLabel = '嵌張待ち'; }
+        if (waitFu === 0 && ctx.winIdx === a + 2 && a % 9 === 0) { waitFu = 2; waitLabel = '辺張待ち'; }
+        if (waitFu === 0 && ctx.winIdx === a && a % 9 === 6) { waitFu = 2; waitLabel = '辺張待ち'; }
       });
       if (waitFu > 0) { fu += waitFu; bd.push(waitLabel + ' +' + waitFu + '符'); }
       else            { bd.push('両面/シャンポン待ち +0符'); }
 
       const raw = fu;
-      fu = Math.ceil(fu / 10) * 10;             // 10の位へ切り上げ
+      fu = Math.ceil(fu / 10) * 10;
       if (raw !== fu) bd.push('小計 ' + raw + '符 → 切り上げ ' + fu + '符');
-      if (!ctx.menzen && fu < 30) { fu = 30; bd.push('鳴き手の最低符 → 30符'); } // 鳴き手の最低符は30符
+      if (!ctx.menzen && fu < 30) { fu = 30; bd.push('鳴き手の最低符 → 30符'); }
       return { fu, breakdown: bd };
     }
 
-    // ============================================================
-    //  ⑧ 翻数と符から最終点数を計算
-    // ============================================================
-    function computePoints(han, fu, isDealer, tsumo) {
-      // 基本点(base)を求める
+    // ★変更：本場を受け取り、点数に加算する
+    function computePoints(han, fu, isDealer, tsumo, honba) {
+      honba = honba || 0;
       let base, limitName = '';
       if (han >= 13)      { base = 8000 * Math.floor(han / 13); limitName = (han >= 26 ? Math.floor(han / 13) + '倍' : '') + '役満'; }
       else if (han >= 11) { base = 6000; limitName = '三倍満'; }
@@ -807,38 +735,48 @@
       else if (han >= 5)  { base = 2000; limitName = '満貫'; }
       else {
         base = fu * Math.pow(2, 2 + han);
-        if (base >= 2000) { base = 2000; limitName = '満貫'; } // 満貫止め
+        if (base >= 2000) { base = 2000; limitName = '満貫'; }
       }
 
-      const up = x => Math.ceil(x / 100) * 100; // 100点単位に切り上げ
+      const up = x => Math.ceil(x / 100) * 100;
+      const honbaTotal = honba * 300; // ロン時に加算する本場の合計
+      const honbaEach  = honba * 100; // ツモ時、1人あたり加算する本場ぶん
+      const honbaNote = honba > 0 ? '（' + honba + '本場 +' + honbaTotal + '点ぶん含む）' : '';
+
       let text, total;
       if (isDealer) {
-        if (tsumo) { const e = up(base * 2); total = e * 3; text = '親ツモ：' + e + '点オール（計 ' + total + '点）'; }
-        else       { total = up(base * 6); text = '親ロン：' + total + '点'; }
+        if (tsumo) {
+          const e = up(base * 2) + honbaEach;
+          total = e * 3;
+          text = '親ツモ：' + e + '点オール（計 ' + total + '点）' + honbaNote;
+        } else {
+          total = up(base * 6) + honbaTotal;
+          text = '親ロン：' + total + '点' + honbaNote;
+        }
       } else {
-        if (tsumo) { const ko = up(base), oya = up(base * 2); total = oya + ko * 2;
-                     text = '子ツモ：親が ' + oya + '点／子が ' + ko + '点ずつ（計 ' + total + '点）'; }
-        else       { total = up(base * 4); text = '子ロン：' + total + '点'; }
+        if (tsumo) {
+          const ko = up(base) + honbaEach, oya = up(base * 2) + honbaEach;
+          total = oya + ko * 2;
+          text = '子ツモ：親が ' + oya + '点／子が ' + ko + '点ずつ（計 ' + total + '点）' + honbaNote;
+        } else {
+          total = up(base * 4) + honbaTotal;
+          text = '子ロン：' + total + '点' + honbaNote;
+        }
       }
       return { text, total, limitName };
     }
 
-    // 宣言したカン・鳴きを、完成手の面子オブジェクトに変換する
     function buildDeclaredMelds() {
       const kanMelds  = kans.map(k => ({ type: 'kan', idx: k.idx, concealed: k.type === 'ankan' }));
-      const callMelds = calls.map(c => ({ type: c.type, idx: c.idx, open: true })); // 鳴き＝明（オープン）
+      const callMelds = calls.map(c => ({ type: c.type, idx: c.idx, open: true }));
       return kanMelds.concat(callMelds);
     }
 
-    // ============================================================
-    //  ⑨ 完成手の判定（役・符・点数）── 点数計算と待ち調べの共通エンジン
-    // ============================================================
-    //  返り値の type: 'yakuman' | 'normal' | 'none'
+    // ★変更：computePoints に ctx.honba を渡す
     function scoreComplete(counts, declaredMelds, noDeclared, ctx) {
       const isDealer = ctx.seatWind === '東';
       const wins = findStandardWins(counts).map(w => ({ pair: w.pair, melds: w.melds.concat(declaredMelds) }));
 
-      // 役満
       const yakuman = [];
       if (noDeclared && isKokushi(counts)) yakuman.push({ name: '国士無双', han: 13 });
       if (noDeclared && isChuuren(counts)) yakuman.push({ name: '九蓮宝燈', han: 13 });
@@ -847,15 +785,14 @@
       const allYm = yakuman.concat(bestYm);
       if (allYm.length > 0) {
         const han = sumHan(allYm);
-        return { type: 'yakuman', yaku: allYm, han, pts: computePoints(han, 0, isDealer, ctx.tsumo) };
+        return { type: 'yakuman', yaku: allYm, han, pts: computePoints(han, 0, isDealer, ctx.tsumo, ctx.honba) };
       }
 
-      // 通常役（候補ごとに計算し、最高点を採用）
       let best = null;
       function consider(yaku, fuRes) {
         if (yaku.length === 0) return;
         const han = sumHan(yaku) + ctx.dora;
-        const pts = computePoints(han, fuRes.fu, isDealer, ctx.tsumo);
+        const pts = computePoints(han, fuRes.fu, isDealer, ctx.tsumo, ctx.honba);
         if (!best || pts.total > best.pts.total) best = { yaku, fu: fuRes.fu, breakdown: fuRes.breakdown, han, pts };
       }
       if (noDeclared && isChiitoitsu(counts))
@@ -866,17 +803,14 @@
       });
 
       if (best) return Object.assign({ type: 'normal' }, best);
-      // 役は無いが「あがり形」ではあるか？
       const isWin = wins.length > 0 || (noDeclared && isChiitoitsu(counts));
       return { type: 'none', isWin };
     }
 
-    // 結果を画面内の result 欄に表示する（ポップアップの代わり）
     function showResult(msg) {
       document.getElementById('result').textContent = msg;
     }
 
-    // ===== ボタン：点数計算 =====
     function calculate() {
       const ctx = getContext();
       const need = neededTiles();
@@ -911,7 +845,6 @@
             '\n' + res.pts.text);
     }
 
-    // ===== ボタン：聴牌時の待ちを調べる =====
     function checkWaits() {
       const ctx = getContext();
       const need = neededTiles();
@@ -925,8 +858,8 @@
 
       const waits = [];
       for (let t = 0; t < 34; t++) {
-        if (tileCount(t) >= 4) continue;          // その牌はもう4枚使い切っている
-        const c2 = baseCounts.slice(); c2[t]++;   // その牌で1枚補ってみる
+        if (tileCount(t) >= 4) continue;
+        const c2 = baseCounts.slice(); c2[t]++;
         const ctx2 = Object.assign({}, ctx, { winIdx: t });
         const res = scoreComplete(c2, declaredMelds, noDeclared, ctx2);
         const isWin = res.type === 'yakuman' || res.type === 'normal' || (res.type === 'none' && res.isWin);
@@ -949,9 +882,68 @@
             '\n（あがり役は今の「あがりの状況」設定で計算）\n\n' + body);
     }
 
-    renderKans();  // カン欄の初期表示
-    renderCalls(); // 鳴き欄の初期表示
-    render();      // 最初に一度だけ画面を整える
+    // ============================================================
+    //  ★新規：localStorage への保存・復元
+    // ============================================================
+    const STORAGE_KEY = 'mahjongCalcState_v1';
+
+    function saveState() {
+      const state = {
+        hand, kans, calls,
+        agari:    document.querySelector('input[name=agari]:checked').value,
+        riichi:   document.getElementById('riichi').checked,
+        ippatsu:  document.getElementById('ippatsu').checked,
+        rinshan:  document.getElementById('rinshan').checked,
+        chankan:  document.getElementById('chankan').checked,
+        haitei:   document.getElementById('haitei').checked,
+        houtei:   document.getElementById('houtei').checked,
+        roundWind: document.getElementById('roundWind').value,
+        seatWind:  document.getElementById('seatWind').value,
+        dora:     document.getElementById('dora').value,
+        honba:    document.getElementById('honba').value,
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const n = document.getElementById('saveNotice');
+        n.textContent = '💾 保存しました';
+        clearTimeout(window._saveNoticeTimer);
+        window._saveNoticeTimer = setTimeout(() => { n.textContent = ''; }, 1200);
+      } catch (e) { /* 保存できない環境では何もしない */ }
+    }
+
+    function loadState() {
+      let raw;
+      try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
+      if (!raw) return;
+      try {
+        const s = JSON.parse(raw);
+        hand  = Array.isArray(s.hand)  ? s.hand  : [];
+        kans  = Array.isArray(s.kans)  ? s.kans  : [];
+        calls = Array.isArray(s.calls) ? s.calls : [];
+        const agariRadio = document.querySelector('input[name=agari][value="' + (s.agari === 'ron' ? 'ron' : 'tsumo') + '"]');
+        if (agariRadio) agariRadio.checked = true;
+        document.getElementById('riichi').checked  = !!s.riichi;
+        document.getElementById('ippatsu').checked = !!s.ippatsu;
+        document.getElementById('rinshan').checked = !!s.rinshan;
+        document.getElementById('chankan').checked = !!s.chankan;
+        document.getElementById('haitei').checked  = !!s.haitei;
+        document.getElementById('houtei').checked  = !!s.houtei;
+        document.getElementById('roundWind').value = s.roundWind || '東';
+        document.getElementById('seatWind').value  = s.seatWind  || '東';
+        document.getElementById('dora').value  = s.dora  || 0;
+        document.getElementById('honba').value = s.honba || 0;
+      } catch (e) { /* 壊れたデータは無視して初期状態のまま使う */ }
+    }
+
+    // 状況設定（チェックボックス・プルダウン・数値入力）が変わったら自動保存
+    ['riichi','ippatsu','rinshan','chankan','haitei','houtei','roundWind','seatWind','dora','honba']
+      .forEach(id => document.getElementById(id).addEventListener('change', saveState));
+    document.querySelectorAll('input[name=agari]').forEach(r => r.addEventListener('change', saveState));
+
+    loadState();   // ★新規：保存されていた状態を復元してから画面を組み立てる
+    renderKans();
+    renderCalls();
+    render();
   </script>
 </body>
 </html>
