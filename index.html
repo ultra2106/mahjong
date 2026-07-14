@@ -114,6 +114,8 @@
     .cond-row select, .cond-row input[type=number] {
       font-size: 14px; padding: 5px; border-radius: 5px; border: none;
     }
+    /* 無効化されたチェックボックスをグレーアウト表示 */
+    .cond-row label:has(input:disabled) { opacity: 0.4; cursor: not-allowed; }
 
     /* 保存状態を知らせる小さな通知 */
     #saveNotice {
@@ -447,6 +449,22 @@
       const r = document.getElementById('riichi'), ip = document.getElementById('ippatsu');
       if (!menzen) { r.checked = false; ip.checked = false; }
       r.disabled = !menzen; ip.disabled = !menzen;
+
+      // ツモ／ロンに応じて該当しない状況役を無効化する
+      const agari = document.querySelector('input[name=agari]:checked').value;
+      const isTsumo = agari === 'tsumo';
+      const rinshanEl = document.getElementById('rinshan');
+      const haiteiEl  = document.getElementById('haitei');
+      const chankanEl = document.getElementById('chankan');
+      const houteiEl  = document.getElementById('houtei');
+
+      rinshanEl.disabled = !isTsumo;
+      haiteiEl.disabled  = !isTsumo;
+      chankanEl.disabled = isTsumo;
+      houteiEl.disabled  = isTsumo;
+
+      if (!isTsumo) { rinshanEl.checked = false; haiteiEl.checked = false; }
+      if (isTsumo)  { chankanEl.checked = false; houteiEl.checked = false; }
 
       const winSel = document.getElementById('winTile');
       const prev = winSel.value;
@@ -995,7 +1013,7 @@
 
     ['riichi','ippatsu','rinshan','chankan','haitei','houtei','roundWind','seatWind','dora','honba']
       .forEach(id => document.getElementById(id).addEventListener('change', saveState));
-    document.querySelectorAll('input[name=agari]').forEach(r => r.addEventListener('change', saveState));
+    document.querySelectorAll('input[name=agari]').forEach(r => r.addEventListener('change', () => { render(); saveState(); }));
 
     loadState();
     renderKans();
