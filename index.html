@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  麻雀 点数計算アプリ ── ステップ1：手牌を組む
+  麻雀 点数計算アプリ
   ============================================
   このファイル1つでアプリが動きます。
   使い方：このファイルをダブルクリックすると、ブラウザで開きます。
@@ -59,6 +59,26 @@
 
     .row { display: flex; flex-wrap: wrap; gap: 4px; }
 
+    /* 鳴き・カンの面子をグループ表示するための枠 */
+    .meld-group {
+      display: flex;
+      gap: 2px;
+      padding: 4px;
+      margin: 2px;
+      border: 2px dashed rgba(255,255,255,0.5);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    .meld-group .tile { opacity: 0.85; }
+    .meld-label {
+      font-size: 10px;
+      opacity: 0.8;
+      align-self: center;
+      margin-right: 2px;
+      writing-mode: vertical-rl;
+    }
+
     .actions { display: flex; gap: 8px; margin-top: 16px; }
     .btn {
       flex: 1;
@@ -95,7 +115,7 @@
       font-size: 14px; padding: 5px; border-radius: 5px; border: none;
     }
 
-    /* ★新規：保存状態を知らせる小さな通知 */
+    /* 保存状態を知らせる小さな通知 */
     #saveNotice {
       text-align: center; font-size: 12px; opacity: 0.7; margin-top: 6px; height: 16px;
     }
@@ -126,7 +146,6 @@
     <div class="cond-row">
       <label><input type="checkbox" id="rinshan"> 嶺上開花（カン後のツモあがり）</label>
     </div>
-    <!-- ★新規：槍槓・海底摸月・河底撈魚 -->
     <div class="cond-row">
       <label><input type="checkbox" id="chankan"> 槍槓（他家のカンをロン）</label>
     </div>
@@ -146,7 +165,6 @@
       <span>ドラ</span>
       <input type="number" id="dora" value="0" min="0" style="width: 54px;">
     </div>
-    <!-- ★新規：本場入力 -->
     <div class="cond-row">
       <span>本場</span>
       <input type="number" id="honba" value="0" min="0" style="width: 54px;">
@@ -261,7 +279,7 @@
       }
       hand.push(name);
       render();
-      saveState(); // ★新規：変更のたびに保存
+      saveState();
     }
 
     function addKan() {
@@ -359,9 +377,19 @@
       return 'honor';
     }
 
+    // 番号(0〜33)から直接、色分けクラス名を返す小さな道具
+    //（鳴き・カンは名前ではなく番号(idx)で管理しているため、suitClass()とは別に用意）
+    function suitClass2(idx) {
+      if (idx >= 27) return 'honor';
+      const suit = Math.floor(idx / 9);
+      return suit === 0 ? 'man' : suit === 1 ? 'pin' : 'sou';
+    }
+
     function render() {
       const handDiv = document.getElementById('hand');
       handDiv.innerHTML = '';
+
+      // 通常の手牌タイル
       hand.forEach((name, index) => {
         const t = document.createElement('button');
         t.className = 'tile ' + suitClass(name);
@@ -370,6 +398,46 @@
         t.onclick = () => removeTile(index);
         handDiv.appendChild(t);
       });
+
+      // カンした牌をグループ表示（4枚まとめて1つの枠）
+      kans.forEach((k, i) => {
+        const group = document.createElement('div');
+        group.className = 'meld-group';
+        group.title = 'タップでカンを取り消す';
+        const label = document.createElement('span');
+        label.className = 'meld-label';
+        label.textContent = k.type === 'ankan' ? '暗槓' : '明槓';
+        group.appendChild(label);
+        for (let n = 0; n < 4; n++) {
+          const t = document.createElement('div');
+          t.className = 'tile ' + suitClass2(k.idx);
+          t.textContent = indexToName(k.idx);
+          group.appendChild(t);
+        }
+        group.onclick = () => removeKan(i);
+        handDiv.appendChild(group);
+      });
+
+      // ポン・チーした牌をグループ表示
+      calls.forEach((c, i) => {
+        const group = document.createElement('div');
+        group.className = 'meld-group';
+        group.title = 'タップで鳴きを取り消す';
+        const label = document.createElement('span');
+        label.className = 'meld-label';
+        label.textContent = c.type === 'kotsu' ? 'ポン' : 'チー';
+        group.appendChild(label);
+        const idxs = c.type === 'kotsu' ? [c.idx, c.idx, c.idx] : [c.idx, c.idx + 1, c.idx + 2];
+        idxs.forEach(idx => {
+          const t = document.createElement('div');
+          t.className = 'tile ' + suitClass2(idx);
+          t.textContent = indexToName(idx);
+          group.appendChild(t);
+        });
+        group.onclick = () => removeCall(i);
+        handDiv.appendChild(group);
+      });
+
       const declared = kans.length + calls.length;
       document.getElementById('handCount').textContent =
         hand.length + ' / ' + neededTiles() + ' 枚' +
@@ -478,7 +546,6 @@
 
     function sumHan(list) { return list.reduce((s, y) => s + y.han, 0); }
 
-    // ★変更：chankan / haitei / houtei / honba を追加
     function getContext() {
       const agari = document.querySelector('input[name=agari]:checked').value;
       return {
@@ -487,14 +554,14 @@
         riichi:    document.getElementById('riichi').checked,
         ippatsu:   document.getElementById('ippatsu').checked,
         rinshan:   document.getElementById('rinshan').checked,
-        chankan:   document.getElementById('chankan').checked, // ★新規
-        haitei:    document.getElementById('haitei').checked,  // ★新規
-        houtei:    document.getElementById('houtei').checked,  // ★新規
+        chankan:   document.getElementById('chankan').checked,
+        haitei:    document.getElementById('haitei').checked,
+        houtei:    document.getElementById('houtei').checked,
         roundWind: document.getElementById('roundWind').value,
         seatWind:  document.getElementById('seatWind').value,
         winIdx:    nameToIndex(document.getElementById('winTile').value),
         dora:      Number(document.getElementById('dora').value) || 0,
-        honba:     Number(document.getElementById('honba').value) || 0, // ★新規
+        honba:     Number(document.getElementById('honba').value) || 0,
         menzen:    isMenzen(),
       };
     }
@@ -542,7 +609,6 @@
       return ym;
     }
 
-    // ★変更：槍槓・海底摸月・河底撈魚を追加
     function analyzeStandard(win, ctx) {
       const yaku = [];
       const shuntsu = win.melds.filter(m => m.type === 'shuntsu');
@@ -556,8 +622,6 @@
       if (ctx.menzen && ctx.tsumo) yaku.push({ name: '門前清自摸和', han: 1 });
 
       if (ctx.rinshan && ctx.tsumo) yaku.push({ name: '嶺上開花', han: 1 });
-
-      // ★新規：状況役
       if (ctx.chankan && ctx.ron) yaku.push({ name: '槍槓', han: 1 });
       if (ctx.haitei && ctx.tsumo) yaku.push({ name: '海底摸月', han: 1 });
       if (ctx.houtei && ctx.ron) yaku.push({ name: '河底撈魚', han: 1 });
@@ -632,15 +696,14 @@
       return yaku;
     }
 
-    // ★変更：チートイツでも状況役を反映
     function analyzeChiitoi(counts, ctx) {
       const yaku = [{ name: '七対子', han: 2 }];
       if (ctx.riichi) yaku.unshift({ name: '立直', han: 1 });
       if (ctx.riichi && ctx.ippatsu) yaku.push({ name: '一発', han: 1 });
       if (ctx.tsumo) yaku.push({ name: '門前清自摸和', han: 1 });
-      if (ctx.chankan && ctx.ron) yaku.push({ name: '槍槓', han: 1 }); // ★新規
-      if (ctx.haitei && ctx.tsumo) yaku.push({ name: '海底摸月', han: 1 }); // ★新規
-      if (ctx.houtei && ctx.ron) yaku.push({ name: '河底撈魚', han: 1 }); // ★新規
+      if (ctx.chankan && ctx.ron) yaku.push({ name: '槍槓', han: 1 });
+      if (ctx.haitei && ctx.tsumo) yaku.push({ name: '海底摸月', han: 1 });
+      if (ctx.houtei && ctx.ron) yaku.push({ name: '河底撈魚', han: 1 });
       const idxs = []; counts.forEach((c, i) => { if (c === 2) idxs.push(i); });
       if (idxs.every(i => !isYaochu(i))) yaku.push({ name: '断么九', han: 1 });
       const suitsUsed = new Set(); let hasHonor = false;
@@ -724,7 +787,6 @@
       return { fu, breakdown: bd };
     }
 
-    // ★変更：本場を受け取り、点数に加算する
     function computePoints(han, fu, isDealer, tsumo, honba) {
       honba = honba || 0;
       let base, limitName = '';
@@ -739,8 +801,8 @@
       }
 
       const up = x => Math.ceil(x / 100) * 100;
-      const honbaTotal = honba * 300; // ロン時に加算する本場の合計
-      const honbaEach  = honba * 100; // ツモ時、1人あたり加算する本場ぶん
+      const honbaTotal = honba * 300;
+      const honbaEach  = honba * 100;
       const honbaNote = honba > 0 ? '（' + honba + '本場 +' + honbaTotal + '点ぶん含む）' : '';
 
       let text, total;
@@ -772,7 +834,6 @@
       return kanMelds.concat(callMelds);
     }
 
-    // ★変更：computePoints に ctx.honba を渡す
     function scoreComplete(counts, declaredMelds, noDeclared, ctx) {
       const isDealer = ctx.seatWind === '東';
       const wins = findStandardWins(counts).map(w => ({ pair: w.pair, melds: w.melds.concat(declaredMelds) }));
@@ -882,9 +943,6 @@
             '\n（あがり役は今の「あがりの状況」設定で計算）\n\n' + body);
     }
 
-    // ============================================================
-    //  ★新規：localStorage への保存・復元
-    // ============================================================
     const STORAGE_KEY = 'mahjongCalcState_v1';
 
     function saveState() {
@@ -935,12 +993,11 @@
       } catch (e) { /* 壊れたデータは無視して初期状態のまま使う */ }
     }
 
-    // 状況設定（チェックボックス・プルダウン・数値入力）が変わったら自動保存
     ['riichi','ippatsu','rinshan','chankan','haitei','houtei','roundWind','seatWind','dora','honba']
       .forEach(id => document.getElementById(id).addEventListener('change', saveState));
     document.querySelectorAll('input[name=agari]').forEach(r => r.addEventListener('change', saveState));
 
-    loadState();   // ★新規：保存されていた状態を復元してから画面を組み立てる
+    loadState();
     renderKans();
     renderCalls();
     render();
